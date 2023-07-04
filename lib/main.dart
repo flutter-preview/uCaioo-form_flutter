@@ -1,11 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:signature/signature.dart';
+import 'dart:io';
+import 'package:pdf/widgets.dart' as pdfWidgets;
+import 'package:pdf/widgets.dart' as pdf;
+import 'package:path_provider/path_provider.dart';
+import 'package:open_file/open_file.dart';
+
 
 void main() {
   runApp(MyApp());
@@ -17,7 +22,21 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Cadastro do responsável',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: MaterialColor(
+          0xFF202F58,
+          <int, Color>{
+            50: Color(0xFFE5E8F3),
+            100: Color(0xFFBCC3E0),
+            200: Color(0xFF8D9CCB),
+            300: Color(0xFF5E75B6),
+            400: Color(0xFF3858A9),
+            500: Color(0xFF202F58),
+            600: Color(0xFF1B284D),
+            700: Color(0xFF162242),
+            800: Color(0xFF111A36),
+            900: Color(0xFF0B0E2B),
+          },
+        ),
         inputDecorationTheme: InputDecorationTheme(
           enabledBorder: UnderlineInputBorder(
             borderSide: BorderSide(color: Color(0xFF202F58)),
@@ -41,6 +60,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
+
 class CadastroForm extends StatefulWidget {
   @override
   _CadastroFormState createState() => _CadastroFormState();
@@ -48,14 +68,14 @@ class CadastroForm extends StatefulWidget {
 
 class _CadastroFormState extends State<CadastroForm> {
   final _formKey = GlobalKey<FormState>();
+  String? _departamento = '';
   String? _para = '';
   String? _unidadeRecebedora = '';
   String? _endereco = '';
-  String? _cidade = 'Manaus, Amazonas';
+  String? _cidade = '';
   String? _cep = '';
   String? _telefone = '';
   String? _responsavel = '';
-  String? _assinatura = '';
   String? _matricula = '';
 
   SignatureController _signatureController = SignatureController(
@@ -125,11 +145,28 @@ class _CadastroFormState extends State<CadastroForm> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+
                 Text(
                   'Cadastro do responsável',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 SizedBox(height: 16),
+                Text(
+                  'Departamento:',
+                  style: TextStyle(fontSize: 16),
+                ),
+                TextFormField(
+                  initialValue: 'Departamento de Gestão de frotas e combustível - DGFC/SEAD',
+                  enabled: false,
+                  decoration: InputDecoration(
+                    hintText: 'Nome do remetente',
+                  ),
+                  onSaved: (value) {
+                    _departamento = value;
+                  },
+                ),
+
+
                 Text(
                   'Para:',
                   style: TextStyle(fontSize: 16),
@@ -137,6 +174,7 @@ class _CadastroFormState extends State<CadastroForm> {
                 TextFormField(
                   decoration: InputDecoration(
                     hintText: 'Nome do destinatário',
+                    hintStyle: TextStyle(fontStyle: FontStyle.italic),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -156,6 +194,7 @@ class _CadastroFormState extends State<CadastroForm> {
                 TextFormField(
                   decoration: InputDecoration(
                     hintText: 'Nome da unidade recebedora',
+                    hintStyle: TextStyle(fontStyle: FontStyle.italic),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -175,6 +214,7 @@ class _CadastroFormState extends State<CadastroForm> {
                 TextFormField(
                   decoration: InputDecoration(
                     hintText: 'Endereço da unidade recebedora',
+                    hintStyle: TextStyle(fontStyle: FontStyle.italic),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -192,8 +232,10 @@ class _CadastroFormState extends State<CadastroForm> {
                   style: TextStyle(fontSize: 16),
                 ),
                 TextFormField(
+                  initialValue: 'Manaus-AM',
                   decoration: InputDecoration(
                     hintText: 'Cidade da unidade recebidora',
+                    hintStyle: TextStyle(fontStyle: FontStyle.italic),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -213,6 +255,7 @@ class _CadastroFormState extends State<CadastroForm> {
                 TextFormField(
                   decoration: InputDecoration(
                     hintText: 'CEP da unidade recebedora',
+                    hintStyle: TextStyle(fontStyle: FontStyle.italic),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -232,6 +275,7 @@ class _CadastroFormState extends State<CadastroForm> {
                 TextFormField(
                   decoration: InputDecoration(
                     hintText: 'Telefone para contato',
+                    hintStyle: TextStyle(fontStyle: FontStyle.italic),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -251,6 +295,7 @@ class _CadastroFormState extends State<CadastroForm> {
                 TextFormField(
                   decoration: InputDecoration(
                     hintText: 'Número de matrícula',
+                    hintStyle: TextStyle(fontStyle: FontStyle.italic),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -270,6 +315,7 @@ class _CadastroFormState extends State<CadastroForm> {
                 TextFormField(
                   decoration: InputDecoration(
                     hintText: 'Nome do responsável',
+                    hintStyle: TextStyle(fontStyle: FontStyle.italic),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -311,9 +357,10 @@ class _CadastroFormState extends State<CadastroForm> {
                       child: Text('Limpar'),
                     ),
                     ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         if (_formKey.currentState!.validate()) {
                           _formKey.currentState!.save();
+                          final signatureImage = await getSignatureImage();
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -325,8 +372,9 @@ class _CadastroFormState extends State<CadastroForm> {
                                 cep: _cep!,
                                 telefone: _telefone!,
                                 responsavel: _responsavel!,
-                                assinatura: _assinatura!,
+                                assinatura: base64Encode(signatureImage), // Codifica a imagem em base64
                                 matricula: _matricula!,
+                                departamento: _departamento!,
                               ),
                             ),
                           );
@@ -334,6 +382,7 @@ class _CadastroFormState extends State<CadastroForm> {
                       },
                       child: Text('Enviar'),
                     ),
+
                   ],
                 ),
               ],
@@ -346,6 +395,7 @@ class _CadastroFormState extends State<CadastroForm> {
 }
 
 class ConfirmationScreen extends StatelessWidget {
+  final String departamento;
   final String para;
   final String unidadeRecebedora;
   final String endereco;
@@ -357,6 +407,7 @@ class ConfirmationScreen extends StatelessWidget {
   final String matricula;
 
   ConfirmationScreen({
+    required this.departamento,
     required this.para,
     required this.unidadeRecebedora,
     required this.endereco,
@@ -370,6 +421,41 @@ class ConfirmationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Future<String> generatePdf() async {
+      final pdf.Document document = pdf.Document();
+
+      // Criação do conteúdo do PDF
+      document.addPage(
+        pdf.Page(
+          build: (pdf.Context context) {
+            return pdfWidgets.Column(
+              children: [
+                pdfWidgets.Text('Departamento: $departamento'),
+                pdfWidgets.Text('Para: $para'),
+                pdfWidgets.Text('Unidade Recebedora: $unidadeRecebedora'),
+                pdfWidgets.Text('Endereço: $endereco'),
+                pdfWidgets.Text('Cidade: $cidade'),
+                pdfWidgets.Text('CEP: $cep'),
+                pdfWidgets.Text('Telefone: $telefone'),
+                pdfWidgets.Text('Responsável: $responsavel'),
+                pdfWidgets.Text('Matrícula: $matricula'),
+              ],
+            );
+          },
+        ),
+      );
+
+      // Obtém o diretório de documentos do dispositivo
+      final String dir = (await getExternalStorageDirectory())!.path;
+      final String path = '$dir/confirmation.pdf';
+
+      // Salva o arquivo PDF no diretório de documentos
+      final File file = File(path);
+      await file.writeAsBytes(await document.save());
+
+      return path;
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Confirmação'),
@@ -384,6 +470,7 @@ class ConfirmationScreen extends StatelessWidget {
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 16),
+            Text('Departamento: $departamento'),
             Text('Para: $para'),
             Text('Unidade Recebedora: $unidadeRecebedora'),
             Text('Endereço: $endereco'),
@@ -401,11 +488,23 @@ class ConfirmationScreen extends StatelessWidget {
               width: 90,
             ),
             SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: Text('Voltar'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: Text('Voltar'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    String filePath = await generatePdf();
+                    OpenFile.open(filePath);
+                  },
+                  child: Text('Enviar'),
+                ),
+              ],
             ),
           ],
         ),
